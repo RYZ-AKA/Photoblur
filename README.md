@@ -33,10 +33,6 @@ Users can capture photos using a ✌ peace hand gesture, automatically generatin
 6. Repeat for the second photo.
 7. Download your finished polaroid memory.
 
-## Screenshots
-
-Coming soon...
-
 ## Live Demo
 
 Coming soon...
