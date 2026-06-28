@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aesthetic Vintage Photobooth</title>
+
+  <!-- Google Fonts: Playfair Display, Zeyada, & Special Elite untuk nuansa koran vintage -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Special+Elite&family=Zeyada&family=Cinzel:wght@700&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- MediaPipe Libraries via CDN untuk Deteksi Gesture Tangan (Peace ✌️) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+  <!-- html2canvas CDN untuk download hasil akhir beserta dekorasi -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            title: ['"Cinzel"', 'serif'],
+            handwritten: ['"Zeyada"', 'cursive'],
+            newspaper: ['"Special Elite"', 'serif'],
+            serifClassic: ['"Playfair Display"', 'serif'],
+            monoClassic: ['"Courier Prime"', 'monospace']
+          },
+          colors: {
+            vintagePaper: '#f4eddc',
+            vintageRed: '#9b1d20',
+            vintageDark: '#1c1a17'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Tekstur kertas koran tua menggunakan gradien noise buatan */
+    .vintage-texture {
+      background-color: #f4eddc;
+      background-image: 
+        radial-gradient(rgba(0,0,0,0.03) 1px, transparent 0),
+        radial-gradient(rgba(0,0,0,0.02) 2px, transparent 0);
+      background-size: 8px 8px, 16px 16px;
+      position: relative;
+    }
+    .vintage-texture::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(rgba(28,26,23,0.02), rgba(28,26,23,0.06)),
+                  url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.12'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Scrollbar minimalis ala koran */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f4eddc;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1c1a17;
+    }
+
+    /* Efek transisi antar halaman */
+    .page-fade {
+      transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+    }
+    .page-hidden {
+      opacity: 0;
+      transform: scale(0.98);
+      pointer-events: none;
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* Custom borders untuk koran */
+    .border-double-newspaper {
+      border-style: double;
+      border-color: #1c1a17;
+      border-width: 4px 0px;
+    }
+    .border-thin-newspaper {
+      border-bottom: 1px solid #1c1a17;
+    }
+
+    /* Polaroid shadows & rotation */
+    .polaroid-shadow {
+      box-shadow: 0 10px 25px rgba(28, 26, 23, 0.15), 0 3px 10px rgba(28, 26, 23, 0.1);
+    }
+
+    /* Blink flash effect */
+    @keyframes flash-animation {
+      0% { opacity: 0; }
+      50% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .flash-overlay {
+      animation: flash-animation 0.7s forwards;
+    }
+
+    /* CSS Polaroid custom size & look */
+    .polaroid-frame {
+      background-color: #fffbf4;
+      padding: 12px 12px 28px 12px;
+      border: 1px solid #e3dac9;
+      position: relative;
+    }
+
+    /* Red Pin 3D */
+    .red-pin {
+      position: absolute;
+      top: -15px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 24px;
+      height: 35px;
+      background: radial-gradient(circle at 8px 8px, #ff4d4d, #b30000);
+      border-radius: 50% 50% 0 0;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      z-index: 40;
+    }
+    .red-pin::after {
+      content: '';
+      position: absolute;
+      bottom: -15px;
+      left: 10px;
+      width: 4px;
+      height: 18px;
+      background: #cccccc;
+      transform: rotate(15deg);
+      box-shadow: -1px 2px 2px rgba(0,0,0,0.2);
+    }
+
+    /* Efek Aesthetic Vintage Dreamy Blur khusus untuk foto hasil */
+    .vintage-aesthetic-blur {
+      filter: blur(2.5px) contrast(0.95) saturate(0.85) sepia(0.15);
+      transform: scale(1.02); /* Sedikit di-scale agar area tepi yang blur tidak memotong border */
+      transition: filter 0.5s ease;
+    }
+  </style>
+</head>
+<body class="vintage-texture text-vintageDark font-serifClassic min-h-screen flex justify-center items-center overflow-x-hidden p-2 sm:p-4 select-none">
+
+  <!-- ================= CONTAINER UTAMA (Rasio 9:16 dioptimalkan untuk Mobile) ================= -->
+  <div class="relative w-full max-w-[430px] h-[852px] rounded-lg border-4 border-vintageDark overflow-hidden bg-vintagePaper flex flex-col justify-between shadow-2xl z-10">
+
+    <!-- Flash Overlay saat capture -->
+    <div id="flashOverlay" class="absolute inset-0 bg-white z-50 pointer-events-none opacity-0"></div>
+
+    <!-- NOTIFIKASI GESTUR DETEKSI / FEEDBACK -->
+    <div id="gestureToast" class="absolute top-24 left-1/2 -translate-x-1/2 bg-vintageDark text-vintagePaper font-monoClassic text-xs px-4 py-2 rounded-full tracking-wider z-40 opacity-0 transition-opacity duration-300 pointer-events-none shadow-md text-center max-w-[80%]">
+      Deteksi Pose...
+    </div>
+
+    <!-- ================= HALAMAN 1: HOME (OLD NEWSPAPER COVER) ================= -->
+    <div id="pageHome" class="page-fade w-full h-full flex flex-col justify-between p-4 overflow-y-auto">
+      
+      <!-- Header Koran Atas -->
+      <div>
+        <div class="grid grid-cols-3 border-b-2 border-vintageDark pb-1 text-center items-center text-[11px] font-monoClassic tracking-widest uppercase">
+          <div>Edisi Spesial</div>
+          <div class="flex items-center justify-center font-bold text-sm">
+            <span class="mr-1">◈</span> PHOTOBOOTH <span class="ml-1">◈</span>
+          </div>
+          <div>Edisi Spesial</div>
+        </div>
+
+        <div class="border-double-newspaper py-1 my-1 flex justify-between items-center text-[9px] font-monoClassic italic tracking-wider px-1">
+          <span>VOL. 01, NO. 01</span>
+          <span>MADE BY GWEHH</span>
+        </div>
+
+        <!-- Judul Besar Merah "PHOTOBOOTH" -->
+        <div class="text-center my-4">
+          <h1 class="font-handwritten text-vintageRed text-7xl sm:text-8xl leading-none font-bold tracking-tight select-none">
+            Photobooth
+          </h1>
+          <div class="h-[1px] bg-vintageDark w-4/5 mx-auto mt-2"></div>
+        </div>
+
+        <!-- Dua Kolom Artikel Lorem Ipsum Koran -->
+        <div class="grid grid-cols-2 gap-3 text-justify text-[9px] leading-relaxed font-serifClassic italic text-vintageDark opacity-90 px-1 border-b border-vintageDark pb-3">
+          <p>
+            Semangat saling menguatkan inilah yang menjadikan hubungan semakin bermakna dan penuh inspirasi. Kebersamaan juga menghadirkan rasa nyaman dan kehangatan yang membuat setiap momen terasa lebih berharga. Dari hal-hal sederhana hingga pengalaman yang lebih besar, semua dapat menjadi kenangan indah ketika dijalani bersama.
+          </p>
+          <p>
+            Dengan saling mendukung dan menghargai satu sama lain, banyak hal positif dapat tercipta. Hubungan yang harmonis tidak hanya dibangun dari kebahagiaan, tetapi juga dari kerja sama, kepercayaan, dan saling memahami. Melalui kebersamaan, setiap langkah terasa lebih ringan, dan setiap tantangan dapat dihadapi dengan lebih kuat.
+          </p>
+        </div>
+      </div>
+
+      <!-- AREA TOMBOL TENGAH - SEPERTI REFERENSI 1 -->
+      <div class="relative my-4 flex flex-col justify-center items-center">
+        <!-- Paragraf koran mini di background tombol -->
+        <div class="grid grid-cols-3 gap-2 text-justify text-[5px] leading-tight opacity-40 select-none px-1 w-full pointer-events-none">
+          <div>Semangat saling menguatkan inilah yang menjadikan hubungan semakin bermakna dan penuh inspirasi. Kebersamaan juga menghadirkan rasa nyaman dan kehangatan.</div>
+          <div>Semangat saling menguatkan inilah yang menjadikan hubungan semakin bermakna dan penuh inspirasi. Kebersamaan juga menghadirkan rasa nyaman dan kehangatan.</div>
+          <div>Semangat saling menguatkan inilah yang menjadikan hubungan semakin bermakna dan penuh inspirasi. Kebersamaan juga menghadirkan rasa nyaman dan kehangatan.</div>
+        </div>
+
+        <!-- Tombol "TRY IT!! / ENTER PHOTOBOOTH" hitam pekat di tengah -->
+        <button id="btnEnter" class="absolute bg-vintageDark text-vintagePaper font-title text-2xl tracking-widest py-4 px-10 hover:bg-vintageRed hover:scale-105 transition-all duration-300 shadow-xl border border-vintagePaper outline-none select-none z-10">
+          TRY IT!!
+        </button>
+      </div>
+
+      <!-- Bagian Bawah Koran -->
+      <div class="border-t-2 border-vintageDark pt-2">
+        <div class="grid grid-cols-3 gap-2 text-justify text-[7px] leading-normal opacity-75 font-monoClassic">
+          <div>
+            <span class="font-bold">MEMORI KLASIK:</span> Setiap momen terabadikan dalam lembaran waktu yang terekam rapi.
+          </div>
+          <div>
+            <span class="font-bold">EFEK INSTAN:</span> Deteksi otomatis gestur tangan menghadirkan keajaiban teknologi retro modern.
+          </div>
+          <div>
+            <span class="font-bold">SIMPAN & BAGIKAN:</span> Ekspor lembaran koran vintage personal Anda secara instan sekali sentuh.
+          </div>
+        </div>
+        <div class="h-1 bg-vintageDark mt-2"></div>
+      </div>
+
+    </div>
+
+    <!-- ================= HALAMAN 2: PHOTOBOOTH (CAPTURE CAMERA) ================= -->
+    <div id="pageCapture" class="page-fade page-hidden w-full h-full flex flex-col justify-between p-4 overflow-y-auto">
+      
+      <!-- Header Koran Atas (Tetap Ada agar konsisten) -->
+      <div>
+        <div class="grid grid-cols-3 border-b-2 border-vintageDark pb-1 text-center items-center text-[11px] font-monoClassic tracking-widest uppercase">
+          <div>Edisi Spesial</div>
+          <div class="flex items-center justify-center font-bold text-sm">
+            <span class="mr-1">◈</span> PHOTOBOOTH <span class="ml-1">◈</span>
+          </div>
+          <div>Edisi Spesial</div>
+        </div>
+        <div class="border-double-newspaper py-1 my-1 flex justify-between items-center text-[9px] font-monoClassic italic tracking-wider px-1">
+          <span>VOL. 01, NO. 01</span>
+          <span>SEDANG MENGAMBIL FOTO...</span>
+        </div>
+      </div>
+
+      <!-- Petunjuk Gestur -->
+      <div class="text-center my-1 bg-vintageRed text-white text-[10px] font-monoClassic py-1 px-3 rounded tracking-widest animate-pulse">
+        TUNJUKKAN GESTUR PEACE ✌️ UNTUK MENGAMBIL FOTO
+      </div>
+
+      <!-- AREA KAMERA PREVIEW (RASIO 4:3) -->
+      <div class="relative w-full flex justify-center items-center my-2">
+        <!-- Frame putih tipis retro -->
+        <div class="relative w-[320px] h-[240px] bg-vintageDark rounded-sm overflow-hidden p-[3px] shadow-lg border border-vintageDark/20">
+          
+          <!-- Element Video Webcam -->
+          <video id="webcam" autoplay playsinline muted class="w-full h-full object-cover rounded-sm scale-x-[-1]"></video>
+          
+          <!-- OVERLAY PRATINJAU BLUR SEMENTARA (Akan tampil tepat di dalam kamera sesaat sebelum blink) -->
+          <img id="cameraPreviewOverlay" class="absolute inset-0 w-full h-full object-cover hidden scale-x-[1] vintage-aesthetic-blur z-20" src="" alt="Pratinjau Sementara">
+
+          <!-- Canvas Tersembunyi untuk MediaPipe Processing -->
+          <canvas id="handsCanvas" class="hidden absolute inset-0 w-full h-full pointer-events-none z-25"></canvas>
+
+          <!-- Label Indikator Frame Aktif -->
+          <div class="absolute bottom-2 left-2 bg-black/60 text-[8px] font-monoClassic text-white px-2 py-0.5 rounded tracking-widest z-30 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 bg-red-600 rounded-full animate-ping"></span>
+            FRAME <span id="captureIndexIndicator">1</span>/2
+          </div>
+
+          <!-- Loading overlay sebelum kamera aktif -->
+          <div id="cameraLoading" class="absolute inset-0 bg-vintageDark flex flex-col justify-center items-center text-vintagePaper gap-2 z-35">
+            <svg class="animate-spin h-6 w-6 text-vintagePaper" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-[10px] font-monoClassic tracking-widest">MEMULAI KAMERA...</span>
+          </div>
+
+          <!-- Blur snap effect overlay -->
+          <div id="snapBlurOverlay" class="absolute inset-0 bg-vintagePaper/70 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300 z-40 flex items-center justify-center">
+            <span class="font-handwritten text-4xl text-vintageRed font-bold -rotate-12">SNAP!</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- KORAN TEXT TENGAH (MENGISI AREA KOSONG SEPERTI DI REFERENSI 2) -->
+      <div class="grid grid-cols-3 gap-2 text-justify text-[7px] leading-relaxed font-serifClassic italic text-vintageDark opacity-80 px-1 border-t border-b border-vintageDark py-2 my-1">
+        <p>
+          Semangat saling menguatkan inilah yang menjadikan hubungan semakin bermakna dan penuh inspirasi. Kebersamaan juga menghadirkan rasa nyaman dan kehangatan yang membuat setiap momen berharga.
+        </p>
+        <p>
+          Dengan saling mendukung dan menghargai satu sama lain, banyak hal positif dapat tercipta. Hubungan yang harmonis tidak hanya dibangun dari kebahagiaan semata namun dari kerja sama.
+        </p>
+        <p>
+          Melalui kebersamaan, setiap langkah terasa lebih ringan, dan setiap tantangan dapat dihadapi dengan lebih kuat. Menghadirkan keceriaan yang abadi sepanjang masa.
+        </p>
+      </div>
+
+      <!-- PREVIEW SLOT POLAROID SEMENTARA (2x1) DI BAGIAN BAWAH -->
+      <div class="flex flex-col items-center justify-center my-2">
+        <div class="text-[9px] font-monoClassic tracking-wider mb-1 text-center text-vintageDark/70">MEMORI POLAROID ANDA</div>
+        <div class="flex gap-2 p-2 bg-vintageDark/5 rounded-md border border-dashed border-vintageDark/20">
+          
+          <!-- Mini Preview Slot 1 -->
+          <div class="w-16 h-20 bg-white border border-neutral-300 p-1 flex flex-col justify-between shadow-sm">
+            <div id="miniSlot1" class="w-full h-12 bg-vintageDark/10 flex items-center justify-center overflow-hidden">
+              <span class="text-[8px] text-vintageDark/40">KOSONG</span>
+            </div>
+            <div class="h-4 w-full flex items-center justify-center bg-transparent">
+              <span class="text-[5px] text-vintageDark/50 font-monoClassic">FOTO 1</span>
+            </div>
+          </div>
+
+          <!-- Mini Preview Slot 2 -->
+          <div class="w-16 h-20 bg-white border border-neutral-300 p-1 flex flex-col justify-between shadow-sm">
+            <div id="miniSlot2" class="w-full h-12 bg-vintageDark/10 flex items-center justify-center overflow-hidden">
+              <span class="text-[8px] text-vintageDark/40">KOSONG</span>
+            </div>
+            <div class="h-4 w-full flex items-center justify-center bg-transparent">
+              <span class="text-[5px] text-vintageDark/50 font-monoClassic">FOTO 2</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ================= HALAMAN 3: HASIL AKHIR (POLAROID SCRAPBOOK AESTHETIC) ================= -->
+    <div id="pageResult" class="page-fade page-hidden w-full h-full flex flex-col justify-between p-4 overflow-y-auto">
+      
+      <!-- Elemen Utama Scrapbook yang akan Diekspor ke Gambar PNG -->
+      <div id="exportArea" class="relative w-full aspect-[9/14] bg-vintagePaper p-4 flex flex-col justify-between overflow-hidden vintage-texture border border-vintageDark/10 shadow-inner rounded-sm" style="min-height: 520px;">
+        
+        <!-- Bunga / Emoji Hiasan di Background / Sudut Atas (Scrapbook Style) -->
+        <!-- Bunga Sudut Kiri Atas -->
+        <div class="absolute top-2 left-2 text-3xl select-none z-30 transform -rotate-12 hover:scale-110 transition-transform duration-300 pointer-events-none opacity-90">
+          🌻🍂🌸
+        </div>
+        <!-- Sparkle Kuning Kanan Atas -->
+        <div class="absolute top-4 right-6 text-2xl select-none z-30 text-yellow-500 font-bold tracking-widest animate-pulse pointer-events-none">
+          ✨🌟
+        </div>
+
+        <!-- Bunga Sudut Kanan Atas -->
+        <div class="absolute top-10 right-2 text-2xl select-none z-30 transform rotate-12 pointer-events-none opacity-90">
+          🌷🌺
+        </div>
+
+        <!-- HEADER KORAN DALAM HASIL AKHIR -->
+        <div class="w-full text-center mt-2 z-10">
+          <div class="grid grid-cols-3 border-b border-vintageDark pb-0.5 text-center items-center text-[7px] font-monoClassic tracking-widest uppercase">
+            <div>Edisi Spesial</div>
+            <div class="font-bold text-[8px]">PHOTOBOOTH MEMORY</div>
+            <div>Edisi Spesial</div>
+          </div>
+          <div class="text-[12px] font-monoClassic italic tracking-wider py-0.5 border-b border-vintageDark">
+            E L E G A N T ✦ K L A S I K
+          </div>
+        </div>
+          
+          <!-- Lembaran Frame Polaroid Putih Cream -->
+          <div class="polaroid-frame polaroid-shadow flex flex-col gap-2 rounded-sm mt-3">
+            
+            <!-- Foto 1 (Atas) -->
+            <div class="relative w-full aspect-[4/3] bg-vintageDark/10 overflow-hidden border border-neutral-200" style="transform: scaleX(-1);">
+              <!-- Class vintage-aesthetic-blur memberikan efek blur lembut estetik sesuai referensi asli -->
+              <img id="resultImage1" class="w-full h-full object-cover scale-x-[-1] vintage-aesthetic-blur" src="" alt="Capture 1">
+              <div class="absolute bottom-1 right-1 text-[7px] font-monoClassic bg-black/40 text-white px-1.5 py-0.5 rounded z-20">#01</div>
+            </div>
+
+            <!-- Foto 2 (Bawah) -->
+            <div class="relative w-full aspect-[4/3] bg-vintageDark/10 overflow-hidden border border-neutral-200" style="transform: scaleX(-1);">
+              <!-- Class vintage-aesthetic-blur memberikan efek blur lembut estetik sesuai referensi asli -->
+              <img id="resultImage2" class="w-full h-full object-cover scale-x-[-1] vintage-aesthetic-blur" src="" alt="Capture 2">
+              <div class="absolute bottom-1 right-1 text-[7px] font-monoClassic bg-black/40 text-white px-1.5 py-0.5 rounded z-20">#02</div>
+            </div>
+
+            <!-- Caption Polaroid Vintage -->
+            <div class="text-center pt-2 border-t border-vintageDark/10 mt-1">
+              <p class="font-handwritten text-xl text-vintageDark leading-none font-bold">Forever Together</p>
+              <p id="polaroidDate" class="font-monoClassic text-[7px] text-vintageDark/60 mt-1 tracking-widest uppercase">2026.06.28</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- DEKORASI BUNGA BAWAH (MENUTUPI SEBAGIAN BAWAH POLAROID AESTHETIC SCRAPBOOK) -->
+        <div class="absolute bottom-10 left-4 text-3xl select-none z-30 transform -rotate-6 pointer-events-none opacity-90">
+          🌸🌷
+        </div>
+        <div class="absolute bottom-12 right-4 text-3xl select-none z-30 transform rotate-12 pointer-events-none opacity-90">
+          🌷💐🪷
+        </div>
+        <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-xl select-none z-30 tracking-widest text-yellow-500 opacity-70 pointer-events-none">
+          ✨ ✦ ✨
+        </div>
+
+        <!-- TEXT FOOTER KORAN BAWAH -->
+        <div class="w-full text-center border-t border-vintageDark pt-1 z-10">
+          <p class="font-monoClassic text-[6px] tracking-wider text-vintageDark/80">
+            DIBUAT SECARA OTOMATIS OLEH TEKNOLOGI GESTUR VINTAGE PHOTOBOOTH.
+          </p>
+        </div>
+
+      </div>
+
+      <!-- TOMBOL AKSI DI BAWAH (SIMPAN & ULANGI) - GLASSMORPHISM TRANSMEDIUM -->
+      <div class="flex gap-4 justify-center items-center my-4 px-2 z-40">
+        
+        <!-- Tombol Ulangi -->
+        <button id="btnRetry" class="w-32 py-3 px-4 rounded-full bg-neutral-500/30 hover:bg-neutral-500/50 text-vintageDark border border-vintageDark/20 font-monoClassic text-xs tracking-widest font-bold backdrop-blur-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-1">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17" /></svg>
+          ULANGI
+        </button>
+
+        <!-- Tombol Simpan -->
+        <button id="btnSave" class="w-32 py-3 px-4 rounded-full bg-vintageDark/85 hover:bg-vintageDark text-vintagePaper font-monoClassic text-xs tracking-widest font-bold backdrop-blur-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-1">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+          SIMPAN
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- AUDIO CAPTURE EFFECT (BEEP + SHUTTER) -->
+  <audio id="audioShutter" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav" preload="auto"></audio>
+  <audio id="audioBeep" src="https://assets.mixkit.co/active_storage/sfx/911/911-84.wav" preload="auto"></audio>
+
+  <!-- ================= LOGIKA JAVASCRIPT & COMPUTER VISION ================= -->
+  <script>
+    // Inisialisasi Elemen DOM
+    const pageHome = document.getElementById('pageHome');
+    const pageCapture = document.getElementById('pageCapture');
+    const pageResult = document.getElementById('pageResult');
+    
+    const btnEnter = document.getElementById('btnEnter');
+    const btnRetry = document.getElementById('btnRetry');
+    const btnSave = document.getElementById('btnSave');
+
+    const webcamElement = document.getElementById('webcam');
+    const cameraPreviewOverlay = document.getElementById('cameraPreviewOverlay');
+    const handsCanvas = document.getElementById('handsCanvas');
+    const cameraLoading = document.getElementById('cameraLoading');
+    const captureIndexIndicator = document.getElementById('captureIndexIndicator');
+    const snapBlurOverlay = document.getElementById('snapBlurOverlay');
+    const flashOverlay = document.getElementById('flashOverlay');
+    const gestureToast = document.getElementById('gestureToast');
+
+    const miniSlot1 = document.getElementById('miniSlot1');
+    const miniSlot2 = document.getElementById('miniSlot2');
+
+    const resultImage1 = document.getElementById('resultImage1');
+    const resultImage2 = document.getElementById('resultImage2');
+    const polaroidDate = document.getElementById('polaroidDate');
+    const exportArea = document.getElementById('exportArea');
+
+    const audioShutter = document.getElementById('audioShutter');
+    const audioBeep = document.getElementById('audioBeep');
+
+    // State Aplikasi
+    let capturedPhotos = [];
+    let isCapturing = false;
+    let cameraStream = null;
+    let handsDetector = null;
+    let cameraInstance = null;
+    let gestureCooldown = false;
+
+    // Set Format Tanggal Polaroid saat ini
+    const today = new Date();
+    const formattedDate = today.getFullYear() + '.' + 
+                          String(today.getMonth() + 1).padStart(2, '0') + '.' + 
+                          String(today.getDate()).padStart(2, '0');
+    polaroidDate.textContent = formattedDate;
+
+    // Helper: Toast Notifikasi
+    function showToast(message, duration = 2000) {
+      gestureToast.textContent = message;
+      gestureToast.style.opacity = '1';
+      setTimeout(() => {
+        gestureToast.style.opacity = '0';
+      }, duration);
+    }
+
+    // Navigasi Halaman dengan Efek Transisi
+    function switchPage(toPage) {
+      [pageHome, pageCapture, pageResult].forEach(p => {
+        p.classList.add('page-hidden');
+      });
+      toPage.classList.remove('page-hidden');
+    }
+
+    // Hubungkan Event Handler
+    btnEnter.addEventListener('click', async () => {
+      // Mainkan suara pendek sebagai feedback klik
+      try { audioBeep.play(); } catch(e){}
+      
+      switchPage(pageCapture);
+      await startCamera();
+      initGestureDetector();
+    });
+
+    btnRetry.addEventListener('click', () => {
+      try { audioBeep.play(); } catch(e){}
+      capturedPhotos = [];
+      miniSlot1.innerHTML = '<span class="text-[8px] text-vintageDark/40">KOSONG</span>';
+      miniSlot2.innerHTML = '<span class="text-[8px] text-vintageDark/40">KOSONG</span>';
+      resultImage1.src = '';
+      resultImage2.src = '';
+      captureIndexIndicator.textContent = '1';
+      cameraPreviewOverlay.classList.add('hidden');
+      cameraPreviewOverlay.src = '';
+      switchPage(pageCapture);
+      isCapturing = false;
+    });
+
+    btnSave.addEventListener('click', downloadScrapbook);
+
+    // Fungsi untuk mengaktifkan Webcam
+    async function startCamera() {
+      cameraLoading.classList.remove('hidden');
+      try {
+        const constraints = {
+          video: {
+            facingMode: 'user', // Menggunakan kamera depan
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          },
+          audio: false
+        };
+        
+        cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+        webcamElement.srcObject = cameraStream;
+        
+        webcamElement.onloadedmetadata = () => {
+          cameraLoading.classList.add('hidden');
+          showToast("Kamera siap! Berikan gestur ✌️");
+        };
+      } catch (err) {
+        console.error("Gagal mengakses webcam:", err);
+        cameraLoading.innerHTML = `<span class="text-[10px] text-red-500 font-monoClassic text-center px-4">Akses Kamera Gagal. Pastikan izin kamera diberikan.</span>`;
+      }
+    }
+
+    // Fungsi untuk menghentikan Kamera
+    function stopCamera() {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
+    }
+
+    // Fungsi Capture Foto dengan alur Pratinjau Blur didalam kamera sebelum blink
+    function capturePhoto() {
+      if (isCapturing) return;
+      isCapturing = true;
+
+      // Ambil snapshot instan dari webcam untuk dijadikan gambar pratinjau blur
+      const captureCanvas = document.createElement('canvas');
+      captureCanvas.width = webcamElement.videoWidth || 640;
+      captureCanvas.height = webcamElement.videoHeight || 480;
+      const ctx = captureCanvas.getContext('2d');
+      
+      // Mirroring agar sesuai pratinjau asli kamera
+      ctx.translate(captureCanvas.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(webcamElement, 0, 0, captureCanvas.width, captureCanvas.height);
+      
+      const photoDataUrl = captureCanvas.toDataURL('image/png');
+      capturedPhotos.push(photoDataUrl);
+
+      // --- TAHAPAN PREVIEW BARU ---
+      // 1. Tampilkan snapshot hasil foto langsung di dalam box kamera (dengan filter blur bawaan class)
+      cameraPreviewOverlay.src = photoDataUrl;
+      cameraPreviewOverlay.classList.remove('hidden');
+      
+      // Mainkan suara notifikasi/indikator bersiap
+      try { audioBeep.play(); } catch(e){}
+      showToast("Pratinjau Foto...");
+
+      // 2. Berikan jeda preview sebentar (0.8 detik) sebelum efek kilatan (blink) kamera dipicu
+      setTimeout(() => {
+        
+        // 3. Picu efek flash (blink) putih & mainkan suara rana kamera (shutter)
+        flashOverlay.classList.remove('opacity-0');
+        flashOverlay.classList.add('flash-overlay');
+        try { audioShutter.play(); } catch(e){}
+
+        // Berikan animasi snap-text blur transisi
+        snapBlurOverlay.classList.remove('opacity-0');
+        snapBlurOverlay.classList.add('opacity-100');
+
+        // 4. Setelah blink selesai (0.7 detik kemudian), hilangkan overlay preview & update slot polaroid
+        setTimeout(() => {
+          flashOverlay.classList.remove('flash-overlay');
+          flashOverlay.classList.add('opacity-0');
+          snapBlurOverlay.classList.remove('opacity-100');
+          snapBlurOverlay.classList.add('opacity-0');
+          
+          // Sembunyikan overlay pratinjau gambar agar webcam kembali terlihat aktif
+          cameraPreviewOverlay.classList.add('hidden');
+          cameraPreviewOverlay.src = '';
+          
+          updateMiniPreviews();
+          
+          if (capturedPhotos.length === 1) {
+            // Berhasil mengambil foto pertama, bersiap untuk foto kedua
+            showToast("Foto 1 disimpan! Ambil foto 2...");
+            captureIndexIndicator.textContent = '2';
+            isCapturing = false;
+          } else if (capturedPhotos.length === 2) {
+            // Berhasil mengambil kedua foto, arahkan ke halaman scrapbook akhir
+            showToast("Semua foto berhasil diambil!");
+            setTimeout(() => {
+              stopCamera();
+              renderFinalResults();
+              switchPage(pageResult);
+            }, 800);
+          }
+        }, 700);
+
+      }, 800); // Durasi penayangan pratinjau blur di dalam kamera sebelum flash
+    }
+
+    // Perbarui Tampilan Mini Preview Slot di bagian bawah halaman capture
+    function updateMiniPreviews() {
+      if (capturedPhotos[0]) {
+        miniSlot1.innerHTML = `<img src="${capturedPhotos[0]}" class="w-full h-full object-cover">`;
+      }
+      if (capturedPhotos[1]) {
+        miniSlot2.innerHTML = `<img src="${capturedPhotos[1]}" class="w-full h-full object-cover">`;
+      }
+    }
+
+    // Render Gambar Hasil Akhir ke dalam Polaroid Frame
+    function renderFinalResults() {
+      resultImage1.src = capturedPhotos[0];
+      resultImage2.src = capturedPhotos[1];
+    }
+
+    // ================= DETEKSI GESTUR PEACE MENGGUNAKAN MEDIAPIPE =================
+    function initGestureDetector() {
+      if (handsDetector) return; // Hindari re-inisialisasi ganda
+
+      handsDetector = new Hands({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+      });
+
+      handsDetector.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.6,
+        minTrackingConfidence: 0.5
+      });
+
+      handsDetector.onResults(onHandResults);
+
+      // Mulai loop kamera untuk MediaPipe
+      const camera = new Camera(webcamElement, {
+        onFrame: async () => {
+          if (cameraStream && cameraStream.active && !isCapturing) {
+            await handsDetector.send({ image: webcamElement });
+          }
+        },
+        width: 640,
+        height: 480
+      });
+      camera.start();
+    }
+
+    // Memproses Hasil Analisis Koordinat Tangan dari MediaPipe
+    function onHandResults(results) {
+      if (isCapturing || gestureCooldown) return;
+
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+        
+        // Logika Deteksi Gestur Peace (Jari Telunjuk & Jari Tengah Tegak, Jari manis & Kelingking menekuk)
+        if (detectPeaceGesture(landmarks)) {
+          triggerCooldown();
+          capturePhoto();
+        }
+      }
+    }
+
+    // Cooldown sederhana pasca deteksi sukses agar tidak men-trigger berkali-kali secara tidak sengaja
+    function triggerCooldown() {
+      gestureCooldown = true;
+      setTimeout(() => {
+        gestureCooldown = false;
+      }, 3000);
+    }
+
+    // Algoritma Heuristik Sederhana Deteksi Gestur Peace ✌️
+    function detectPeaceGesture(lm) {
+      // Landmark indeks:
+      // 4: Jempol Tip
+      // 8: Telunjuk Tip, 7: Telunjuk PIP, 6: Telunjuk MCP
+      // 12: Tengah Tip, 11: Tengah PIP, 10: Tengah MCP
+      // 16: Manis Tip, 15: Manis PIP, 14: Manis MCP
+      // 20: Kelingking Tip, 19: Kelingking PIP, 18: Kelingking MCP
+
+      // Mengecek apakah jari Telunjuk & Tengah terentang lurus (Y-tip jauh lebih tinggi/kecil nilainya dibanding MCP)
+      const isIndexExtended = lm[8].y < lm[6].y && lm[7].y < lm[6].y;
+      const isMiddleExtended = lm[12].y < lm[10].y && lm[11].y < lm[10].y;
+
+      // Mengecek apakah jari Manis & Kelingking ditekuk ke arah telapak tangan (Y-tip berada di bawah/lebih besar nilainya dibanding MCP)
+      const isRingFolded = lm[16].y > lm[14].y;
+      const isPinkyFolded = lm[20].y > lm[18].y;
+
+      // Jarak horizontal antara ujung telunjuk dan ujung tengah harus melebihi batas minimal tertentu (V-shape)
+      const horizontalGap = Math.abs(lm[8].x - lm[12].x);
+      const isOpenV = horizontalGap > 0.05;
+
+      return isIndexExtended && isMiddleExtended && isRingFolded && isPinkyFolded && isOpenV;
+    }
+
+    // ================= EXPORT & DOWNLOAD AREA SCRAPBOOK KE PNG RESOLUSI TINGGI =================
+    function downloadScrapbook() {
+      showToast("Sedang memproses gambar...", 3000);
+      btnSave.disabled = true;
+      btnSave.innerHTML = `<svg class="animate-spin h-4 w-4 mr-1 text-vintagePaper" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> MEMPROSES`;
+
+      // Simpan inline-style transformasi yang ada untuk di-reset sementara demi presisi render html2canvas
+      const polaroidContainer = exportArea.querySelector('.polaroid-frame').parentElement;
+      const originalTransform = polaroidContainer.style.transform;
+      
+      // Hapus rotasi polaroid sementara waktu agar proses render presisi lurus dan tidak terpotong
+      polaroidContainer.style.transform = 'none';
+
+      // Gunakan parameter scale tinggi untuk hasil resolusi ultra HD (min 1080x1920)
+      html2canvas(exportArea, {
+        scale: 4, // 4x scale menjamin kualitas cetak tajam, min resolusi 1080px+ lebar
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#f4eddc',
+        logging: false
+      }).then(canvas => {
+        // Kembalikan rotasi estetik setelah rendering selesai
+        polaroidContainer.style.transform = originalTransform;
+
+        // Ekspor data ke URI gambar
+        const imageUri = canvas.toDataURL('image/png');
+        
+        // Buat tautan unduhan tidak terlihat
+        const downloadLink = document.createElement('a');
+        downloadLink.href = imageUri;
+        downloadLink.download = `photobooth-vintage-${formattedDate.replace(/\./g, '')}.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+
+        // Kembalikan status tombol simpan semula
+        btnSave.disabled = false;
+        btnSave.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg> SIMPAN`;
+        showToast("Gambar berhasil disimpan!");
+      }).catch(err => {
+        console.error("Gagal melakukan export gambar:", err);
+        polaroidContainer.style.transform = originalTransform;
+        btnSave.disabled = false;
+        btnSave.innerHTML = `SIMPAN`;
+        showToast("Gagal menyimpan gambar.");
+      });
+    }
+
+  </script>
+</body>
+</html>
