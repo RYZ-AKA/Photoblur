@@ -35,7 +35,7 @@ Users can capture photos using a ✌ peace hand gesture, automatically generatin
 
 ## Live Demo
 
-Coming soon...
+https://ryz-aka.github.io/Photoblur/
 
 ## License
 
